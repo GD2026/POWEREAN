@@ -38,7 +38,18 @@
   // Non-secret identity for local dev/build; the deploy sets the real values.
   // SECRETS (e.g. the fnf token) are NEVER here and NEVER in the Worker — the
   // platform Outbound Worker injects them on server-side egress.
-  "vars": { "HF_ENV": "dev", "APP_SLUG": "app-slug-placeholder" }
+  "vars": { "HF_ENV": "dev", "APP_SLUG": "app-slug-placeholder" },
+
+  // D1 is declared in app.manifest.json ("db": true). This block only serves
+  // local `wrangler dev`; the deploy injects the real database id.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "app-slug-placeholder-db",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ]
 
   // ── OPT-IN INFRA (off by default) ────────────────────────────────
   // Declare the service in app.manifest.json; the deploy injects the real

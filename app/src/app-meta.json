@@ -1,7 +1,7 @@
 {
-  "og_title": null,
-  "og_description": null,
-  "og_image_url": null,
-  "favicon_url": null,
+  "og_title": "EAN-skanner",
+  "og_description": "Skann EAN og se bilde, pris og lagerstatus for POWER Mariero. Samle EAN-ene i en liste og skann dem inn i butikksystemet én og én.",
+  "og_image_url": "/og-cover.jpg",
+  "favicon_url": "/icons/favicon.svg",
   "og_video_url": null
 }

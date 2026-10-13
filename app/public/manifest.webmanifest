@@ -1,0 +1,22 @@
+{
+  "name": "EAN-skanner – POWER Mariero",
+  "short_name": "EAN-skanner",
+  "description": "Skann EAN, se pris og lager på POWER Mariero, og skann EAN-listen inn i butikksystemet.",
+  "lang": "nb",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f2f4f3",
+  "theme_color": "#1747c9",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Skann", "url": "/" },
+    { "name": "EAN-liste", "url": "/liste" }
+  ]
+}

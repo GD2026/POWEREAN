@@ -8,10 +8,11 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
-import { button } from "@higgsfield/quanta/button";
-import { NotFound } from "@higgsfield/quanta/not-found";
+import { Toaster } from "sonner";
 
+import { ListProvider } from "../lib/client/list-context";
 import appCss from "../styles.css?url";
+import peCss from "../powerean.css?url";
 import { reportHiggsfieldError } from "../lib/higgsfield-error-reporting";
 // Page metadata (browser <title>/favicon + social og: tags) committed into the
 // repo by the marketplace meta API and read at BUILD time — no runtime fetch.
@@ -21,8 +22,9 @@ import appMetaJson from "../app-meta.json";
 declare const __HF_DESIGN_INSPECTOR__: boolean;
 
 // Built-in defaults for any field that isn't set in app-meta.json.
-const DEFAULT_TITLE = "Higgsfield App";
-const DEFAULT_DESCRIPTION = "Higgsfield Generated Project";
+const DEFAULT_TITLE = "EAN-skanner – POWER Mariero";
+const DEFAULT_DESCRIPTION =
+  "Skann EAN-koder og se bilde, pris og lagerstatus for POWER Mariero. Samle EAN-ene i en liste og skann dem inn i butikksystemet én og én.";
 
 type AppMeta = {
   og_title?: string | null;
@@ -74,15 +76,22 @@ function buildHead(meta: AppMeta) {
   return {
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title },
       { name: "description", content: description },
-      { name: "author", content: "Higgsfield" },
+      // Internal store tool: keep it out of search engines.
+      { name: "robots", content: "noindex, nofollow" },
+      { name: "theme-color", content: "#f2f4f3", media: "(prefers-color-scheme: light)" },
+      { name: "theme-color", content: "#0c1412", media: "(prefers-color-scheme: dark)" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "EAN-skanner" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+      { name: "format-detection", content: "telephone=no" },
       { property: "og:title", content: title },
       { property: "og:description", content: description },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: ogImage ? "summary_large_image" : "summary" },
-      { name: "twitter:site", content: "@Higgsfield" },
       ...(ogImage
         ? [
             { property: "og:image", content: ogImage },
@@ -95,24 +104,30 @@ function buildHead(meta: AppMeta) {
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      ...(favicon ? [{ rel: "icon", href: favicon }] : []),
+      { rel: "stylesheet", href: peCss },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
+      {
+        rel: "icon",
+        href: favicon ?? "/icons/favicon.svg",
+        type: favicon ? undefined : "image/svg+xml",
+      },
     ],
   };
 }
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-q-background-primary px-4">
-      <NotFound
-        className="mx-auto max-w-md"
-        icon={<span className="text-q-title-md-semi-bold text-q-text-primary">404</span>}
-        title="Page not found"
-        subtitle="The page you're looking for doesn't exist or has been moved."
-      >
-        <Link to="/" className={button({ variant: "primary", size: "md" }, "mt-3")}>
-          Go home
+    <div className="pe-main" style={{ minHeight: "100dvh", alignContent: "center" }}>
+      <div className="pe-card pe-message" style={{ textAlign: "center" }}>
+        <h2>Fant ikke siden</h2>
+        <p className="pe-muted" style={{ margin: 0 }}>
+          Siden finnes ikke eller er flyttet.
+        </p>
+        <Link to="/" className="pe-btn pe-btn--primary pe-btn--big">
+          Til skanneren
         </Link>
-      </NotFound>
+      </div>
     </div>
   );
 }
@@ -125,26 +140,25 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   }, [error]);
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-q-background-primary px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-q-title-lg-semi-bold text-q-text-primary">This page didn't load</h1>
-        <p className="mt-2 text-q-body-sm-regular text-q-text-secondary">
-          Something went wrong on our end. You can try refreshing or head back home.
+    <div className="pe-main" style={{ minHeight: "100dvh", alignContent: "center" }}>
+      <div className="pe-card pe-message" style={{ textAlign: "center" }}>
+        <h2>Noe gikk galt</h2>
+        <p className="pe-muted" style={{ margin: 0 }}>
+          Siden lastet ikke. Prøv igjen, eller gå tilbake til skanneren.
         </p>
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
-          <button
-            onClick={() => {
-              router.invalidate();
-              reset();
-            }}
-            className={button({ variant: "primary", size: "md" })}
-          >
-            Try again
-          </button>
-          <a href="/" className={button({ variant: "outline", size: "md" })}>
-            Go home
-          </a>
-        </div>
+        <button
+          type="button"
+          className="pe-btn pe-btn--primary pe-btn--big"
+          onClick={() => {
+            router.invalidate();
+            reset();
+          }}
+        >
+          Prøv igjen
+        </button>
+        <a href="/" className="pe-btn pe-btn--big">
+          Til skanneren
+        </a>
       </div>
     </div>
   );
@@ -161,14 +175,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" data-theme="default-dark" style={{ colorScheme: "dark" }}>
-      {/* Marketplace apps are permanently dark: data-theme is pinned on <html>
-          above. Do not add quanta's bootstrapScript/ThemeController, a theme
-          toggle, or a light mode. */}
+    <html lang="nb">
+      {/* Standalone website: own light/dark tokens in powerean.css follow the
+          phone's appearance setting. */}
       <head>
         <HeadContent />
       </head>
-      <body className="bg-q-background-primary text-q-text-primary">
+      <body>
         {children}
         <Scripts />
       </body>
@@ -200,8 +213,11 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <ListProvider>
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+        <Toaster position="top-center" richColors closeButton duration={2600} />
+      </ListProvider>
     </QueryClientProvider>
   );
 }

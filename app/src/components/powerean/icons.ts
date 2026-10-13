@@ -1,0 +1,19 @@
+// Material Symbols (rounded) as React components, coloured with currentColor.
+export { default as AddIcon } from "@material-symbols/svg-400/rounded/add.svg?react";
+export { default as BackIcon } from "@material-symbols/svg-400/rounded/arrow_back.svg?react";
+export { default as BarcodeIcon } from "@material-symbols/svg-400/rounded/barcode.svg?react";
+export { default as CheckIcon } from "@material-symbols/svg-400/rounded/check_circle.svg?react";
+export { default as ChecklistIcon } from "@material-symbols/svg-400/rounded/checklist.svg?react";
+export { default as CloseIcon } from "@material-symbols/svg-400/rounded/close.svg?react";
+export { default as CopyIcon } from "@material-symbols/svg-400/rounded/content_copy.svg?react";
+export { default as DeleteIcon } from "@material-symbols/svg-400/rounded/delete.svg?react";
+export { default as DoneAllIcon } from "@material-symbols/svg-400/rounded/done_all.svg?react";
+export { default as FullscreenIcon } from "@material-symbols/svg-400/rounded/fullscreen.svg?react";
+export { default as InventoryIcon } from "@material-symbols/svg-400/rounded/inventory_2.svg?react";
+export { default as KeyboardIcon } from "@material-symbols/svg-400/rounded/keyboard.svg?react";
+export { default as NextIcon } from "@material-symbols/svg-400/rounded/arrow_forward.svg?react";
+export { default as OpenIcon } from "@material-symbols/svg-400/rounded/open_in_new.svg?react";
+export { default as ScanIcon } from "@material-symbols/svg-400/rounded/barcode_scanner.svg?react";
+export { default as ShareIcon } from "@material-symbols/svg-400/rounded/share.svg?react";
+export { default as StoreIcon } from "@material-symbols/svg-400/rounded/storefront.svg?react";
+export { default as TorchIcon } from "@material-symbols/svg-400/rounded/flashlight_on.svg?react";

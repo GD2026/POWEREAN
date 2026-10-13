@@ -1,0 +1,106 @@
+{
+ "products": [
+  {
+   "categoryName": "True wireless hodetelefoner",
+   "manufacturerName": "Apple",
+   "price": 2890.0,
+   "productId": 4157161,
+   "stockCount": 4763,
+   "storesStockCount": 1867,
+   "title": "Apple AirPods Pro 3",
+   "url": "/tv-og-lyd/hodetelefoner/true-wireless-hodetelefoner/apple-airpods-pro-3/p-4157161/",
+   "productImage": {
+    "basePath": "/images/h-282f44c30bb4729e0f6a65fdd2dcab5f/products/4157161",
+    "isPrimary": true,
+    "imageType": 1,
+    "imageAltText": "Studiobilde i nærbilde av hvite Apple AirPods Pro 3 trådløse ørepropper, som viser deres elegante design og komfortable passform i øret mot en svart bakgrunn.",
+    "aiImageSource": 0,
+    "generativeContent": {
+     "imageSubType": "pack",
+     "averageColorHex": "#070707"
+    },
+    "variants": [
+     {
+      "filename": "4157161_9_1200x1200_t_g.webp",
+      "width": 1200,
+      "height": 1200,
+      "isTransparent": true
+     },
+     {
+      "filename": "4157161_9_1200x1200_w_g.jpg",
+      "width": 1200,
+      "height": 1200,
+      "isTransparent": false
+     },
+     {
+      "filename": "4157161_9_150x150_t_g.webp",
+      "width": 150,
+      "height": 150,
+      "isTransparent": true
+     },
+     {
+      "filename": "4157161_9_150x150_w_g.jpg",
+      "width": 150,
+      "height": 150,
+      "isTransparent": false
+     },
+     {
+      "filename": "4157161_9_2400x2400_t_g.webp",
+      "width": 2400,
+      "height": 2400,
+      "isTransparent": true
+     },
+     {
+      "filename": "4157161_9_300x300_t_g.webp",
+      "width": 300,
+      "height": 300,
+      "isTransparent": true
+     },
+     {
+      "filename": "4157161_9_300x300_w_g.jpg",
+      "width": 300,
+      "height": 300,
+      "isTransparent": false
+     },
+     {
+      "filename": "4157161_9_600x600_t_g.png",
+      "width": 600,
+      "height": 600,
+      "isTransparent": true
+     },
+     {
+      "filename": "4157161_9_600x600_t_g.webp",
+      "width": 600,
+      "height": 600,
+      "isTransparent": true
+     },
+     {
+      "filename": "4157161_9_600x600_w_g.jpg",
+      "width": 600,
+      "height": 600,
+      "isTransparent": false
+     },
+     {
+      "filename": "4157161_9_900x900_t_g.webp",
+      "width": 900,
+      "height": 900,
+      "isTransparent": true
+     },
+     {
+      "filename": "4157161_9_900x900_w_g.jpg",
+      "width": 900,
+      "height": 900,
+      "isTransparent": false
+     }
+    ]
+   },
+   "productManufactorIdentity": "MFHP4DN/A",
+   "webStockText": "Product.Stock.aLotLeft"
+  }
+ ],
+ "startIndex": 0,
+ "totalProductCount": 1,
+ "sortId": 5,
+ "pageSize": 5,
+ "isLastPage": true
+}
