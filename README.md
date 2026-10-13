@@ -15,7 +15,8 @@ Mobil-app (installerbar nettapp) for butikkgulvet:
 
 ## Bruk på iPhone
 
-1. Åpne **https://powerean.higgsfield.app** i Safari.
+1. Åpne **https://powerean.higgsfield.app** i Safari og logg inn med Higgsfield-kontoen din
+   (siden er privat for eieren så lenge den ikke er publisert på Higgsfield).
 2. Trykk Del-knappen → **Legg til på Hjem-skjerm**. Appen får eget ikon og åpnes i fullskjerm.
 3. Trykk **Start skanning** og tillat kamera. Appen piper når koden er lest.
 
