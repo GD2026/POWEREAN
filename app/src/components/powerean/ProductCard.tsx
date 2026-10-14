@@ -90,7 +90,7 @@ export function ProductCard({
       )}
       <div style={{ minWidth: 0 }}>
         <h2>{p.title}</h2>
-        <div className="pe-ean">{spacedEan(p.ean)}</div>
+        <div className="pe-ean">{p.ean ? spacedEan(p.ean) : `Varenr ${p.productId}`}</div>
         {p.model && <div className="pe-small pe-muted">Modell {p.model}</div>}
         <div className="pe-price">
           <strong>{formatPrice(p.price) ?? "Ingen pris"}</strong>

@@ -9,11 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SkannRouteImport } from './routes/skann'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as ListeRouteImport } from './routes/liste'
+import { Route as LagerRouteImport } from './routes/lager'
 import { Route as IndexRouteImport } from './routes/index'
 
+const SkannRoute = SkannRouteImport.update({
+  id: '/skann',
+  path: '/skann',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -29,6 +36,11 @@ const ListeRoute = ListeRouteImport.update({
   path: '/liste',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LagerRoute = LagerRouteImport.update({
+  id: '/lager',
+  path: '/lager',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -37,40 +49,63 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/lager': typeof LagerRoute
   '/liste': typeof ListeRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/skann': typeof SkannRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/lager': typeof LagerRoute
   '/liste': typeof ListeRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/skann': typeof SkannRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/lager': typeof LagerRoute
   '/liste': typeof ListeRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/skann': typeof SkannRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/liste' | '/robots.txt' | '/sitemap.xml'
+  fullPaths:
+    '/' | '/lager' | '/liste' | '/robots.txt' | '/sitemap.xml' | '/skann'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/liste' | '/robots.txt' | '/sitemap.xml'
-  id: '__root__' | '/' | '/liste' | '/robots.txt' | '/sitemap.xml'
+  to: '/' | '/lager' | '/liste' | '/robots.txt' | '/sitemap.xml' | '/skann'
+  id:
+    | '__root__'
+    | '/'
+    | '/lager'
+    | '/liste'
+    | '/robots.txt'
+    | '/sitemap.xml'
+    | '/skann'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LagerRoute: typeof LagerRoute
   ListeRoute: typeof ListeRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  SkannRoute: typeof SkannRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/skann': {
+      id: '/skann'
+      path: '/skann'
+      fullPath: '/skann'
+      preLoaderRoute: typeof SkannRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -92,6 +127,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ListeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lager': {
+      id: '/lager'
+      path: '/lager'
+      fullPath: '/lager'
+      preLoaderRoute: typeof LagerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -104,9 +146,11 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LagerRoute: LagerRoute,
   ListeRoute: ListeRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  SkannRoute: SkannRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -20,7 +20,8 @@ export interface StoreStock {
 }
 
 export interface ProductInfo {
-  ean: string;
+  /** The scanned EAN; null for products found by name/article number. */
+  ean: string | null;
   productId: number;
   title: string;
   brand: string | null;
@@ -45,3 +46,8 @@ export type LookupResult =
   | { status: "found"; product: ProductInfo }
   | { status: "not_found"; ean: string }
   | { status: "error"; ean: string; message: string };
+
+export type SearchResult =
+  | { status: "found"; query: string; total: number; products: ProductInfo[] }
+  | { status: "not_found"; query: string }
+  | { status: "error"; query: string; message: string };

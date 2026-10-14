@@ -5,7 +5,14 @@
 import { z } from "zod";
 
 import { normalizeEan } from "./ean";
-import type { LookupResult, ProductInfo, StoreAvailability, StoreStock } from "./product-types";
+import type {
+  LookupResult,
+  ProductInfo,
+  SearchResult,
+  StoreAvailability,
+  StoreStock,
+} from "./product-types";
+import { buildSearchQueries, rankByText } from "./search-text";
 
 const POWER_ORIGIN = "https://www.power.no";
 const IMAGE_ORIGIN = "https://media.power-cdn.net";
@@ -125,7 +132,11 @@ function toStoreStock(rows: unknown[]): StoreStock | null {
   return null;
 }
 
-export function toProductInfo(ean: string, rawProduct: unknown, storeRows: unknown[]): ProductInfo {
+export function toProductInfo(
+  ean: string | null,
+  rawProduct: unknown,
+  storeRows: unknown[],
+): ProductInfo {
   const p = searchProductSchema.parse(rawProduct);
   const productPath = p.url.startsWith("/") ? p.url : `/${p.url}`;
   return {
@@ -188,21 +199,79 @@ export async function lookupPowerProduct(
   );
   if (!productId.success) return { status: "error", ean, message: "Uventet svar fra power.no" };
 
-  // Store stock is best-effort: a product card without it beats no card.
-  let storeRows: unknown[] = [];
-  try {
-    const rows = await getJson(fetchImpl, `/api/v2/products/${productId.data}/stores`, {
-      postalCode: MARIERO.postalCode,
-      amount: "5",
-    });
-    if (Array.isArray(rows)) storeRows = rows;
-  } catch (error) {
-    console.error("power.no store stock failed", error instanceof Error ? error.message : error);
-  }
-
+  const storeRows = await fetchStoreRows(fetchImpl, productId.data);
   try {
     return { status: "found", product: toProductInfo(ean, first, storeRows) };
   } catch {
     return { status: "error", ean, message: "Uventet svar fra power.no" };
   }
+}
+
+/** Store stock is best-effort: a product card without it beats no card. */
+async function fetchStoreRows(fetchImpl: FetchLike, productId: number): Promise<unknown[]> {
+  try {
+    const rows = await getJson(fetchImpl, `/api/v2/products/${productId}/stores`, {
+      postalCode: MARIERO.postalCode,
+      amount: "5",
+    });
+    return Array.isArray(rows) ? rows : [];
+  } catch (error) {
+    console.error("power.no store stock failed", error instanceof Error ? error.message : error);
+    return [];
+  }
+}
+
+const MAX_RESULTS = 6;
+
+/**
+ * Finds products from whatever is on a price tag: a POWER article number
+ * (7 digits), an EAN, a model code or a product name. Returns the best
+ * matches with POWER Mariero stock.
+ */
+export async function searchPowerProducts(
+  text: string,
+  fetchImpl: FetchLike = fetch,
+): Promise<SearchResult> {
+  const input = text
+    .replace(/\p{Cc}/gu, " ")
+    .trim()
+    .slice(0, 120);
+  let hits: unknown[] = [];
+  let usedQuery = input;
+  try {
+    // An article number is the productId: fetch it directly for an exact hit.
+    const varenr = /^\d{6,8}$/.exec(input.replace(/\s/g, ""))?.[0];
+    if (varenr) {
+      const direct = await getJson(fetchImpl, "/api/v2/products", { ids: varenr });
+      if (Array.isArray(direct)) hits = direct;
+    }
+    const queries = hits.length
+      ? []
+      : [...new Set([...(/^\d{8,14}$/.test(input) ? [input] : []), ...buildSearchQueries(input)])];
+    for (const q of queries) {
+      const search = searchSchema.parse(
+        await getJson(fetchImpl, "/api/v2/productlists", { q, size: "12" }),
+      );
+      if (search.products.length) {
+        hits = search.products;
+        usedQuery = q;
+        break;
+      }
+    }
+  } catch (error) {
+    console.error("power.no search failed", error instanceof Error ? error.message : error);
+    return { status: "error", query: input, message: "Fikk ikke kontakt med power.no" };
+  }
+
+  const parsed = hits
+    .map((raw) => ({ raw, ok: searchProductSchema.safeParse(raw) }))
+    .filter((h) => h.ok.success)
+    .map((h) => ({ raw: h.raw, title: h.ok.data!.title, productId: h.ok.data!.productId }));
+  if (!parsed.length) return { status: "not_found", query: input };
+
+  const best = rankByText(parsed, input).slice(0, MAX_RESULTS);
+  const products = await Promise.all(
+    best.map(async (h) => toProductInfo(null, h.raw, await fetchStoreRows(fetchImpl, h.productId))),
+  );
+  return { status: "found", query: usedQuery, total: parsed.length, products };
 }

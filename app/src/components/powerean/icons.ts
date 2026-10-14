@@ -17,3 +17,8 @@ export { default as ScanIcon } from "@material-symbols/svg-400/rounded/barcode_s
 export { default as ShareIcon } from "@material-symbols/svg-400/rounded/share.svg?react";
 export { default as StoreIcon } from "@material-symbols/svg-400/rounded/storefront.svg?react";
 export { default as TorchIcon } from "@material-symbols/svg-400/rounded/flashlight_on.svg?react";
+export { default as CameraIcon } from "@material-symbols/svg-400/rounded/photo_camera.svg?react";
+export { default as ChevronIcon } from "@material-symbols/svg-400/rounded/chevron_right.svg?react";
+export { default as ImageIcon } from "@material-symbols/svg-400/rounded/image.svg?react";
+export { default as StockCheckIcon } from "@material-symbols/svg-400/rounded/manage_search.svg?react";
+export { default as SearchIcon } from "@material-symbols/svg-400/rounded/search.svg?react";

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import searchAirpods from "./__fixtures__/search-airpods.json";
 import searchEmpty from "./__fixtures__/search-empty.json";
 import storesAirpods from "./__fixtures__/stores-airpods.json";
-import { MARIERO, lookupPowerProduct, toProductInfo } from "./power.server";
+import { MARIERO, lookupPowerProduct, searchPowerProducts, toProductInfo } from "./power.server";
 
 describe("toProductInfo", () => {
   it("normalises a search hit plus the Mariero store row", () => {
@@ -109,5 +109,72 @@ describe("lookupPowerProduct", () => {
     const result = await lookupPowerProduct("../../etc", fetchImpl);
     expect(result.status).toBe("error");
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe("searchPowerProducts", () => {
+  const airpods = searchAirpods.products[0];
+  const phone = (id: number, title: string) => ({ ...airpods, productId: id, title });
+
+  function router(handler: (url: URL) => unknown) {
+    return vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      const body = handler(url);
+      return body === undefined ? new Response("nope", { status: 404 }) : Response.json(body);
+    });
+  }
+
+  it("fetches a POWER article number directly", async () => {
+    const fetchImpl = router((url) => {
+      if (url.pathname === "/api/v2/products" && url.searchParams.get("ids") === "4157161")
+        return [airpods];
+      if (url.pathname === "/api/v2/products/4157161/stores") return storesAirpods;
+    });
+    const result = await searchPowerProducts("4157161", fetchImpl);
+    expect(result).toMatchObject({ status: "found", total: 1 });
+    if (result.status === "found") {
+      expect(result.products[0]).toMatchObject({ productId: 4157161, ean: null });
+      expect(result.products[0].stock.store?.availability).toBe("in_stock");
+    }
+  });
+
+  it("drops words until power.no finds something, then ranks by the tag text", async () => {
+    const queries: string[] = [];
+    const fetchImpl = router((url) => {
+      if (url.pathname === "/api/v2/productlists") {
+        const q = url.searchParams.get("q")!;
+        queries.push(q);
+        return q === "iphone 17 pro max 512"
+          ? {
+              products: [
+                phone(1, "Apple iPhone 17 Pro Max 512 GB, sølv"),
+                phone(2, "Apple iPhone 17 Pro Max 512 GB, svart"),
+              ],
+            }
+          : { products: [] };
+      }
+      if (/\/stores$/.test(url.pathname)) return storesAirpods;
+    });
+    const result = await searchPowerProducts("iPhone 17 Pro Max 512GB (Sort)", fetchImpl);
+    expect(queries).toEqual(["iphone 17 pro max 512 GB", "iphone 17 pro max 512"]);
+    expect(result.status).toBe("found");
+    if (result.status === "found") {
+      expect(result.query).toBe("iphone 17 pro max 512");
+      expect(result.products.map((p) => p.productId)).toEqual([2, 1]);
+    }
+  });
+
+  it("reports not_found when nothing matches", async () => {
+    const fetchImpl = router((url) =>
+      url.pathname === "/api/v2/productlists" ? { products: [] } : undefined,
+    );
+    expect(await searchPowerProducts("finnes ikke modell", fetchImpl)).toMatchObject({
+      status: "not_found",
+    });
+  });
+
+  it("reports an error when power.no is down", async () => {
+    const fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
+    expect(await searchPowerProducts("LG G6 OLED", fetchImpl)).toMatchObject({ status: "error" });
   });
 });

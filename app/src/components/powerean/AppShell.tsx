@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import { useEanList } from "@/lib/client/list-context";
 
-import { ChecklistIcon, ScanIcon } from "./icons";
+import { ChecklistIcon, StockCheckIcon, ScanIcon } from "./icons";
 
 export function AppMark() {
   return (
@@ -35,7 +35,9 @@ export function AppShell({ title, subtitle, actions, children }: AppShellProps) 
   return (
     <div className="pe-shell">
       <header className="pe-top">
-        <AppMark />
+        <Link to="/" aria-label="Til startsiden" className="pe-home-link">
+          <AppMark />
+        </Link>
         <div style={{ minWidth: 0 }}>
           <h1>{title}</h1>
           {subtitle && <p>{subtitle}</p>}
@@ -44,9 +46,9 @@ export function AppShell({ title, subtitle, actions, children }: AppShellProps) 
       </header>
       <main className="pe-main">{children}</main>
       <nav className="pe-tabbar" aria-label="Hovedmeny">
-        <Link to="/" className="pe-tab" activeOptions={{ exact: true }}>
+        <Link to="/skann" className="pe-tab">
           <ScanIcon aria-hidden />
-          Skann
+          Skann EAN
         </Link>
         <Link to="/liste" className="pe-tab">
           <ChecklistIcon aria-hidden />
@@ -56,6 +58,10 @@ export function AppShell({ title, subtitle, actions, children }: AppShellProps) 
               {remaining > 999 ? "999+" : remaining}
             </span>
           )}
+        </Link>
+        <Link to="/lager" className="pe-tab">
+          <StockCheckIcon aria-hidden />
+          Lagersjekk
         </Link>
       </nav>
     </div>

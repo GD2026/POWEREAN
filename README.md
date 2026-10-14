@@ -1,14 +1,18 @@
 # PowerEAN – EAN-skanner for POWER Mariero
 
-Mobil-app (installerbar nettapp) for butikkgulvet:
+Mobil-app (installerbar nettapp) for butikkgulvet. Startsiden har tre valg:
 
-- **Skann** – pek kameraet mot en strekkode (EAN-13, EAN-8, UPC). Appen henter **bilde, pris
+1. **Skann EAN** – pek kameraet mot en strekkode (EAN-13, EAN-8, UPC). Appen henter **bilde, pris
   (inkl. førpris) og lagerstatus for POWER Mariero** fra power.no, pluss antall på nettlager og
   totalt i alle POWER-butikker.
-- **EAN-liste** – alt du skanner havner i en liste der hver EAN vises **som en ekte strekkode,
+2. **EAN-liste** – alt du skanner havner i en liste der hver EAN vises **som en ekte strekkode,
   under hverandre**. Skann dem inn i butikksystemet med håndskanneren rett fra skjermen.
   **Skannemodus** viser én stor kode om gangen: «Ferdig – neste» markerer den og går videre.
   Skjermen holdes våken.
+3. **Lagersjekk** – ta bilde av prislappen (også varer på utstilling uten strekkode). Appen leser
+   teksten på telefonen og finner **varenummer, EAN, modellkode eller produktnavn**, søker på
+   power.no og viser treffene med lagerstatus for Mariero, nettlager og alle butikker. Du kan
+   også trykke på et annet funn fra lappen, eller skrive inn varenr/modell/navn selv.
 
 > Uoffisielt hjelpeverktøy. Data hentes fra power.no sitt offentlige web-API og kan avvike fra
 > butikksystemet.
@@ -61,6 +65,11 @@ vises de automatisk.
   zod-validering, 60 s cache og 60 oppslag/min per klient.
 - `app/src/lib/client/list-store.ts` – listene (localStorage) og delelenker. Lenken legger listen
   i URL-fragmentet (`#del=…`, komprimert), som aldri sendes til serveren.
+- `app/src/lib/search-text.ts` + `searchPowerProducts` i `power.server.ts` – Lagersjekk:
+  plukker varenr/EAN/modell/navn fra prislapp-tekst, slår opp varenummer direkte, prøver kortere
+  søk når hele navnet ikke gir treff («512GB» → «512 GB», farger fjernes) og rangerer treffene.
+- `app/src/lib/client/ocr.ts` – tekstlesing med Tesseract.js på telefonen (norsk språkdata,
+  selvhostet under `/assets/ocr-v7/`). Bildet sendes aldri til serveren, bare søketeksten.
 - `app/src/lib/client/scanner-engine.ts` – innebygd `BarcodeDetector`, ellers ZXing-WASM
   (selvhostet `.wasm`). Krever to like avlesninger før en kode godtas.
 - Sikkerhet: streng CSP (`connect-src 'self'`, bilder kun fra POWERs CDN),

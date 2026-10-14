@@ -16,7 +16,8 @@
     { "src": "/icons/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
   ],
   "shortcuts": [
-    { "name": "Skann", "url": "/" },
-    { "name": "EAN-liste", "url": "/liste" }
+    { "name": "Skann EAN", "url": "/skann" },
+    { "name": "EAN-liste", "url": "/liste" },
+    { "name": "Lagersjekk", "url": "/lager" }
   ]
 }
