@@ -1,0 +1,23 @@
+name: Keep app awake
+
+# Render's free plan puts the app to sleep after 15 minutes without traffic,
+# and waking it takes about a minute. Ping it during store opening hours
+# (POWER Mariero: Mon–Fri 10–20, Sat 10–18 Norwegian time) so scans stay instant.
+# If Render gives the service another address, set the repository variable
+# APP_URL (Settings → Secrets and variables → Actions → Variables).
+on:
+  schedule:
+    - cron: "*/5 7-19 * * 1-6"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping
+        env:
+          APP_URL: ${{ vars.APP_URL || 'https://powerean.onrender.com' }}
+        run: curl -fsS --max-time 100 --retry 2 --retry-delay 5 "$APP_URL/healthz"

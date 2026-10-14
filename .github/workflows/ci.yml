@@ -35,7 +35,18 @@ jobs:
       - name: Unit tests
         run: bun run test
 
-      - name: Build (as the Higgsfield deploy does)
-        env:
-          HF_DESIGN_INSPECTOR: "1"
+      - name: Build
         run: bunx vite build
+
+  docker:
+    runs-on: ubuntu-latest
+    name: Docker image (as Render builds it)
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: docker build -t powerean .
+      - name: Smoke test
+        run: |
+          docker run -d --name pe -p 10000:10000 powerean
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:10000/healthz && break; sleep 1; done
+          curl -fsS http://127.0.0.1:10000/ | grep -q "EAN-skanner"

@@ -79,3 +79,26 @@ allow it in iOS Settings and offer manual entry.
 Vitest unit tests for `ean.ts` (check digits, normalisation, symbology) and for the Power
 response normaliser against recorded fixtures. Typecheck plus production build. A live smoke
 test of the deployed `/api` paths with a real EAN (AirPods Pro 3, `195950543650`).
+
+## Revision 2026-10-14: hosted on Render, no database
+
+The user asked for colleagues to be able to use the app without Higgsfield
+(an unpublished Higgsfield site requires the owner's Higgsfield login), and
+suggested Render.
+
+- **Hosting:** one free Render web service built from `Dockerfile`
+  (`render.yaml` Blueprint, one-click "Deploy to Render" button). The app runs
+  as a small Node server (`app/server/node-server.mjs`) around the TanStack
+  Start fetch handler; static files are served with long-lived caching and
+  Brotli/gzip.
+- **No database:** Render's free plan has no persistent disk and free Postgres
+  expires, so lists moved to the device (localStorage, `client/list-store.ts`).
+  Each colleague has their own lists, and they work offline. "Del listen som
+  lenke" puts the list, deflated and base64url-encoded, in the URL fragment
+  (`/liste#del=…`). The fragment never reaches the server, and the receiving
+  device validates it before importing.
+- **Server:** stateless. It only runs the product lookup, with an in-process
+  60 s cache and a 60/min per-client rate limit.
+- **Cold starts:** Render's free plan sleeps after 15 idle minutes (~1 min to
+  wake). `.github/workflows/keep-alive.yml` pings `/healthz` every 5 minutes
+  during store hours. This costs nothing because the repository is public.

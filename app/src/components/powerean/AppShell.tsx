@@ -29,8 +29,8 @@ interface AppShellProps {
 }
 
 export function AppShell({ title, subtitle, actions, children }: AppShellProps) {
-  const { list, pendingCount } = useEanList();
-  const remaining = (list?.items.filter((i) => !i.done).length ?? 0) + pendingCount;
+  const { list } = useEanList();
+  const remaining = list?.items.filter((i) => !i.done).length ?? 0;
 
   return (
     <div className="pe-shell">

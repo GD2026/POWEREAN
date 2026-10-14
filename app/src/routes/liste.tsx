@@ -1,7 +1,6 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { z } from "zod";
 
 import { AppShell } from "@/components/powerean/AppShell";
 import { Barcode } from "@/components/powerean/Barcode";
@@ -22,10 +21,7 @@ import { formatPrice } from "@/lib/client/format";
 import { useEanList } from "@/lib/client/list-context";
 import { parseEanList } from "@/lib/ean";
 
-const searchSchema = z.object({ l: z.string().uuid().optional().catch(undefined) });
-
 export const Route = createFileRoute("/liste")({
-  validateSearch: searchSchema,
   head: () => ({ meta: [{ title: "EAN-liste · EAN-skanner" }] }),
   component: ListPage,
 });
@@ -42,24 +38,25 @@ async function copyText(text: string, okMessage: string) {
 }
 
 function ListPage() {
-  const { l: sharedId } = Route.useSearch();
-  const navigate = useNavigate();
   const ctx = useEanList();
-  const { list, listId, isLoading, pendingCount, knownLists } = ctx;
+  const { list, listId, isLoading, knownLists, importShared } = ctx;
   const [filter, setFilter] = useState<Filter>("todo");
   const [focus, setFocus] = useState(false);
   const [sheet, setSheet] = useState<"paste" | "menu" | "switch" | null>(null);
   const [pasteText, setPasteText] = useState("");
 
-  // Opening a shared link (…/liste?l=<id>) switches this device to that list.
+  // A share link (…/liste#del=<payload>) carries the list itself in the URL
+  // fragment, which never reaches the server. Import it, then tidy the URL.
   useEffect(() => {
-    if (!sharedId) return;
-    if (sharedId !== listId) {
-      ctx.switchTo(sharedId);
-      toast.success("Åpnet delt liste");
-    }
-    void navigate({ to: "/liste", search: {}, replace: true });
-  }, [sharedId, listId, ctx, navigate]);
+    if (isLoading) return;
+    const match = /^#del=([A-Za-z0-9_-]+)$/.exec(window.location.hash);
+    if (!match) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    void importShared(match[1]).then((count) => {
+      if (count == null) toast.error("Lenken er ugyldig eller ødelagt");
+      else toast.success(`Åpnet delt liste med ${count} EAN`);
+    });
+  }, [isLoading, importShared]);
 
   const items = useMemo(() => list?.items ?? [], [list]);
   const doneCount = items.filter((i) => i.done).length;
@@ -70,10 +67,8 @@ function ListPage() {
   );
   const parsed = useMemo(() => parseEanList(pasteText), [pasteText]);
 
-  const shareUrl =
-    typeof window !== "undefined" && listId ? `${window.location.origin}/liste?l=${listId}` : "";
-
   const share = async () => {
+    const shareUrl = await ctx.shareLink();
     if (!shareUrl) return;
     const nav = navigator as Navigator & { share?: (d: ShareData) => Promise<void> };
     if (nav.share) {
@@ -84,7 +79,7 @@ function ListPage() {
         if (error instanceof DOMException && error.name === "AbortError") return;
       }
     }
-    await copyText(shareUrl, "Lenken er kopiert – åpne den på PC-en");
+    await copyText(shareUrl, "Lenken er kopiert – åpne den på PC-en eller send den til en kollega");
   };
 
   const rename = () => {
@@ -92,9 +87,9 @@ function ListPage() {
     if (name) ctx.rename(name.slice(0, 60));
   };
 
-  const addPasted = async () => {
+  const addPasted = () => {
     if (parsed.eans.length === 0) return;
-    await ctx.add(parsed.eans.map((ean) => ({ ean })));
+    ctx.add(parsed.eans.map((ean) => ({ ean })));
     toast.success(`${parsed.eans.length} EAN lagt til`);
     setPasteText("");
     setSheet(null);
@@ -135,11 +130,6 @@ function ListPage() {
         <div className="pe-progress" aria-hidden>
           <i style={{ width: items.length ? `${(doneCount / items.length) * 100}%` : "0%" }} />
         </div>
-        {pendingCount > 0 && (
-          <p className="pe-small" style={{ margin: 0, color: "var(--warn)" }}>
-            {pendingCount} EAN venter på nett og legges inn automatisk.
-          </p>
-        )}
         <button
           type="button"
           className="pe-btn pe-btn--primary pe-btn--big"
@@ -293,7 +283,7 @@ function ListPage() {
             type="button"
             className="pe-btn pe-btn--primary pe-btn--big"
             disabled={parsed.eans.length === 0}
-            onClick={() => void addPasted()}
+            onClick={addPasted}
           >
             Legg til {parsed.eans.length || ""} EAN
           </button>
@@ -309,7 +299,7 @@ function ListPage() {
               disabled={!listId}
               onClick={() => void share().then(() => setSheet(null))}
             >
-              <ShareIcon aria-hidden /> Del lenke til listen (åpne på PC)
+              <ShareIcon aria-hidden /> Del listen som lenke (PC eller kollega)
             </button>
             <button
               type="button"
@@ -369,13 +359,11 @@ function ListPage() {
             <button
               type="button"
               className="pe-btn"
-              onClick={() =>
-                void ctx
-                  .startNewList()
-                  .then(() => toast.success("Ny tom liste"))
-                  .catch(() => toast.error("Fikk ikke laget ny liste"))
-                  .finally(() => setSheet(null))
-              }
+              onClick={() => {
+                ctx.startNewList();
+                toast.success("Ny tom liste");
+                setSheet(null);
+              }}
             >
               <AddIcon aria-hidden /> Ny tom liste
             </button>
@@ -403,7 +391,7 @@ function ListPage() {
                     setSheet(null);
                   }}
                 >
-                  {l.name}
+                  {l.name} · {l.count} EAN
                 </button>
               ))}
           </div>

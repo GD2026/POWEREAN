@@ -1,7 +1,7 @@
-// Shared state for the active EAN list: which list this device uses, the
-// server copy (react-query), and an offline queue so a scan in a dead spot of
-// the stock room is never lost.
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+// Shared state for the EAN lists. Lists are stored on this device
+// (localStorage), so scanning works without a connection and the server stays
+// stateless. A list moves to another device (e.g. the PC at the till) inside
+// a share link.
 import {
   createContext,
   useCallback,
@@ -13,263 +13,125 @@ import {
   type ReactNode,
 } from "react";
 import { toast } from "sonner";
-import { z } from "zod";
 
-import {
-  addItemsFn,
-  clearItemsFn,
-  createListFn,
-  deleteItemFn,
-  getListFn,
-  renameListFn,
-  setAllDoneFn,
-  setItemDoneFn,
-} from "../api/powerean.functions";
 import type { EanList, NewItem } from "../list-types";
+import * as store from "./list-store";
 import { readStored, writeStored } from "./storage";
 
-const ACTIVE_KEY = "powerean.activeList";
-const PENDING_KEY = "powerean.pending";
-const KNOWN_KEY = "powerean.knownLists";
+const STORE_KEY = "powerean.lists.v1";
 
-const uuid = z.string().uuid();
-const pendingSchema = z.array(
-  z.object({
-    ean: z.string().regex(/^\d{8,14}$/),
-    title: z.string().nullish(),
-    price: z.number().nullish(),
-    thumbUrl: z.string().nullish(),
-    productUrl: z.string().nullish(),
-  }),
-);
-const knownSchema = z.array(z.object({ id: uuid, name: z.string() }));
-
-export type KnownList = z.infer<typeof knownSchema>[number];
+export type KnownList = { id: string; name: string; count: number };
 
 interface ListContextValue {
   listId: string | null;
-  list: EanList | null | undefined;
+  list: EanList | null;
+  /** True until this device's saved lists have been read (first client render). */
   isLoading: boolean;
-  pendingCount: number;
   knownLists: KnownList[];
-  add: (items: NewItem[]) => Promise<void>;
+  add: (items: NewItem[]) => void;
   setDone: (itemId: string, done: boolean) => void;
   setAllDone: (done: boolean) => void;
   remove: (itemId: string) => void;
   clear: (onlyDone: boolean) => void;
   rename: (name: string) => void;
-  startNewList: () => Promise<void>;
+  startNewList: () => void;
   switchTo: (listId: string) => void;
+  /** Builds a share link for the active list. */
+  shareLink: () => Promise<string | null>;
+  /** Imports a list from a share payload; returns its item count or null if invalid. */
+  importShared: (payload: string) => Promise<number | null>;
 }
 
 const ListContext = createContext<ListContextValue | null>(null);
 
 function defaultListName() {
   const now = new Date();
-  return `Liste ${now.toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit" })} ${now.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" })}`;
-}
-
-function errorText(error: unknown) {
-  return error instanceof Error && error.message ? error.message : "Noe gikk galt";
+  const date = now.toLocaleDateString("nb-NO", { day: "2-digit", month: "2-digit" });
+  const time = now.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
+  return `Liste ${date} ${time}`;
 }
 
 export function ListProvider({ children }: { children: ReactNode }) {
-  const queryClient = useQueryClient();
-  const [listId, setListId] = useState<string | null>(null);
-  const [pending, setPending] = useState<NewItem[]>([]);
-  const [knownLists, setKnownLists] = useState<KnownList[]>([]);
-  const creating = useRef<Promise<string> | null>(null);
-  const flushing = useRef(false);
+  const [state, setState] = useState<store.ListStore>(store.emptyStore);
+  const [hydrated, setHydrated] = useState(false);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
-  // Hydrate per-device state after mount (SSR has no localStorage).
+  // Read saved lists after mount (SSR has no localStorage), and follow
+  // changes made in another tab of the same app.
   useEffect(() => {
-    setListId(readStored(ACTIVE_KEY, uuid.nullable(), null));
-    setPending(readStored(PENDING_KEY, pendingSchema, []));
-    setKnownLists(readStored(KNOWN_KEY, knownSchema, []));
-  }, []);
-
-  const activate = useCallback((id: string | null) => {
-    setListId(id);
-    writeStored(ACTIVE_KEY, id);
-  }, []);
-
-  const query = useQuery({
-    queryKey: ["list", listId],
-    queryFn: () => getListFn({ data: { listId: listId! } }),
-    enabled: listId != null,
-    // Keep phone and till PC in sync when both have the list open.
-    refetchInterval: 15_000,
-    refetchOnWindowFocus: true,
-  });
-
-  // A list that no longer exists on the server is forgotten.
-  useEffect(() => {
-    if (listId && query.isSuccess && query.data === null) activate(null);
-  }, [listId, query.isSuccess, query.data, activate]);
-
-  // Remember list names so the user can switch back to an older list.
-  useEffect(() => {
-    const list = query.data;
-    if (!list) return;
-    setKnownLists((prev) => {
-      const next = [
-        { id: list.id, name: list.name },
-        ...prev.filter((l) => l.id !== list.id),
-      ].slice(0, 10);
-      writeStored(KNOWN_KEY, next);
-      return next;
-    });
-  }, [query.data]);
-
-  const setList = useCallback(
-    (list: EanList | null) => {
-      if (list) queryClient.setQueryData(["list", list.id], list);
-    },
-    [queryClient],
-  );
-
-  const ensureList = useCallback(async (): Promise<string> => {
-    if (listId) return listId;
-    if (!creating.current) {
-      creating.current = createListFn({ data: { name: defaultListName() } })
-        .then((list) => {
-          setList(list);
-          activate(list.id);
-          return list.id;
-        })
-        .finally(() => {
-          creating.current = null;
-        });
-    }
-    return creating.current;
-  }, [listId, activate, setList]);
-
-  const savePending = useCallback((items: NewItem[]) => {
-    setPending(items);
-    writeStored(PENDING_KEY, items.length ? items : null);
-  }, []);
-
-  const flush = useCallback(async () => {
-    if (flushing.current) return;
-    const queued = readStored(PENDING_KEY, pendingSchema, []);
-    if (queued.length === 0) return;
-    flushing.current = true;
-    try {
-      const id = await ensureList();
-      for (let i = 0; i < queued.length; i += 500) {
-        const result = await addItemsFn({ data: { listId: id, items: queued.slice(i, i + 500) } });
-        setList(result.list);
-        if (result.full) toast.warning("Listen er full (1000 EAN). Lag en ny liste.");
-      }
-      savePending([]);
-    } catch {
-      // Still offline: keep the queue for the next attempt.
-    } finally {
-      flushing.current = false;
-    }
-  }, [ensureList, savePending, setList]);
-
-  useEffect(() => {
-    if (pending.length === 0) return;
-    const retry = () => void flush();
-    window.addEventListener("online", retry);
-    const timer = window.setInterval(retry, 20_000);
-    return () => {
-      window.removeEventListener("online", retry);
-      window.clearInterval(timer);
+    setState(readStored(STORE_KEY, store.storeSchema, store.emptyStore));
+    setHydrated(true);
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORE_KEY) setState(readStored(STORE_KEY, store.storeSchema, store.emptyStore));
     };
-  }, [pending.length, flush]);
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  const commit = useCallback((next: store.ListStore) => {
+    stateRef.current = next;
+    setState(next);
+    writeStored(STORE_KEY, next);
+  }, []);
+
+  const active = useMemo(() => state.lists.find((l) => l.id === state.activeId) ?? null, [state]);
+
+  /** Applies a change to the active list, creating one first when there is none. */
+  const update = useCallback(
+    (change: (list: EanList) => EanList) => {
+      const current = stateRef.current;
+      const list =
+        current.lists.find((l) => l.id === current.activeId) ?? store.createList(defaultListName());
+      commit(store.upsertList(current, change(list)));
+    },
+    [commit],
+  );
 
   const add = useCallback(
-    async (items: NewItem[]) => {
+    (items: NewItem[]) => {
       if (items.length === 0) return;
-      try {
-        const id = await ensureList();
-        for (let i = 0; i < items.length; i += 500) {
-          const result = await addItemsFn({ data: { listId: id, items: items.slice(i, i + 500) } });
-          setList(result.list);
-          if (result.full) toast.warning("Listen er full (1000 EAN). Lag en ny liste.");
-        }
-      } catch {
-        const queued = readStored(PENDING_KEY, pendingSchema, []);
-        const merged = [...queued, ...items.filter((it) => !queued.some((q) => q.ean === it.ean))];
-        savePending(merged);
-        toast.message("Ingen nett – lagret på telefonen", {
-          description: "EAN-ene legges i listen automatisk når du har dekning igjen.",
-        });
-      }
+      let full = false;
+      update((list) => {
+        const result = store.addItems(list, items);
+        full = result.full;
+        return result.list;
+      });
+      if (full) toast.warning("Listen er full (1000 EAN). Lag en ny liste.");
     },
-    [ensureList, savePending, setList],
-  );
-
-  // Optimistic edits: update the screen first, then reconcile with the server.
-  const mutate = useCallback(
-    (patch: (list: EanList) => EanList, request: (id: string) => Promise<EanList | null>) => {
-      if (!listId) return;
-      const key = ["list", listId];
-      const before = queryClient.getQueryData<EanList | null>(key);
-      if (before) queryClient.setQueryData(key, patch(before));
-      request(listId)
-        .then((list) => setList(list))
-        .catch((error) => {
-          if (before) queryClient.setQueryData(key, before);
-          toast.error(errorText(error));
-        });
-    },
-    [listId, queryClient, setList],
+    [update],
   );
 
   const value = useMemo<ListContextValue>(
     () => ({
-      listId,
-      list: query.data,
-      isLoading: listId != null && query.isLoading,
-      pendingCount: pending.length,
-      knownLists,
+      listId: active?.id ?? null,
+      list: active,
+      isLoading: !hydrated,
+      knownLists: state.lists.map((l) => ({ id: l.id, name: l.name, count: l.items.length })),
       add,
-      setDone: (itemId, done) =>
-        mutate(
-          (l) => ({ ...l, items: l.items.map((it) => (it.id === itemId ? { ...it, done } : it)) }),
-          (id) => setItemDoneFn({ data: { listId: id, itemId, done } }),
-        ),
-      setAllDone: (done) =>
-        mutate(
-          (l) => ({ ...l, items: l.items.map((it) => ({ ...it, done })) }),
-          (id) => setAllDoneFn({ data: { listId: id, done } }),
-        ),
-      remove: (itemId) =>
-        mutate(
-          (l) => ({ ...l, items: l.items.filter((it) => it.id !== itemId) }),
-          (id) => deleteItemFn({ data: { listId: id, itemId } }),
-        ),
-      clear: (onlyDone) =>
-        mutate(
-          (l) => ({ ...l, items: onlyDone ? l.items.filter((it) => !it.done) : [] }),
-          (id) => clearItemsFn({ data: { listId: id, onlyDone } }),
-        ),
-      rename: (name) =>
-        mutate(
-          (l) => ({ ...l, name }),
-          (id) => renameListFn({ data: { listId: id, name } }),
-        ),
-      startNewList: async () => {
-        const list = await createListFn({ data: { name: defaultListName() } });
-        setList(list);
-        activate(list.id);
+      setDone: (itemId, done) => update((l) => store.setDone(l, itemId, done)),
+      setAllDone: (done) => update((l) => store.setAllDone(l, done)),
+      remove: (itemId) => update((l) => store.removeItem(l, itemId)),
+      clear: (onlyDone) => update((l) => store.clearItems(l, onlyDone)),
+      rename: (name) => update((l) => store.renameList(l, name)),
+      startNewList: () =>
+        commit(store.upsertList(stateRef.current, store.createList(defaultListName()))),
+      switchTo: (id) => {
+        const list = stateRef.current.lists.find((l) => l.id === id);
+        if (list) commit(store.upsertList(stateRef.current, list));
       },
-      switchTo: (id) => activate(id),
+      shareLink: async () => {
+        if (!active) return null;
+        return `${window.location.origin}/liste#del=${await store.encodeShare(active)}`;
+      },
+      importShared: async (payload) => {
+        const list = await store.decodeShare(payload);
+        if (!list) return null;
+        commit(store.upsertList(stateRef.current, list));
+        return list.items.length;
+      },
     }),
-    [
-      listId,
-      query.data,
-      query.isLoading,
-      pending.length,
-      knownLists,
-      add,
-      mutate,
-      setList,
-      activate,
-    ],
+    [active, hydrated, state.lists, add, update, commit],
   );
 
   return <ListContext.Provider value={value}>{children}</ListContext.Provider>;

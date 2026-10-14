@@ -87,7 +87,7 @@ function ScanPage() {
       writeStored(RECENT_KEY, next);
       return next;
     });
-    if (autoAdd) void add([toListItem(ean, result)]);
+    if (autoAdd) add([toListItem(ean, result)]);
   }, [ean, scanSeq, product.isFetching, product.data, product.isError, autoAdd, add]);
 
   const show = useCallback((code: string) => {
@@ -154,7 +154,7 @@ function ScanPage() {
             result={product.data}
             loading={product.isFetching && !product.data}
             inList={inList}
-            onAddToList={() => void add([toListItem(ean, product.data)])}
+            onAddToList={() => add([toListItem(ean, product.data)])}
             onRetry={() => void product.refetch()}
           />
         ) : (

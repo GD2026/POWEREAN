@@ -1,4 +1,4 @@
-// List shapes shared by the server (lists.server.ts) and the UI.
+// EAN list shapes (stored on the device, see client/list-store.ts).
 
 export interface ListItem {
   id: string;
