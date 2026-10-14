@@ -7,6 +7,7 @@ import { z } from "zod";
 import { normalizeEan } from "./ean";
 import type {
   LookupResult,
+  NearbyStore,
   ProductInfo,
   SearchResult,
   StoreAvailability,
@@ -64,6 +65,7 @@ const searchSchema = z.object({
 const storeRowSchema = z.object({
   storeId: z.number(),
   name: z.string(),
+  distance: z.number().nullish(),
   storeAvailability: z.number().nullish(),
   storeDisplayStock: z.number().nullish(),
   storeStockCount: z.number().nullish(),
@@ -111,11 +113,32 @@ function pickImage(image: z.infer<typeof imageSchema>, preferredWidth: number): 
   return best ? `${IMAGE_ORIGIN}${image.basePath}/${best.filename}` : null;
 }
 
-function toStoreStock(rows: unknown[]): StoreStock | null {
-  for (const raw of rows) {
+function parseStoreRows(rows: unknown[]) {
+  return rows.flatMap((raw) => {
     const parsed = storeRowSchema.safeParse(raw);
-    if (!parsed.success || parsed.data.storeId !== MARIERO.storeId) continue;
-    const row = parsed.data;
+    return parsed.success ? [parsed.data] : [];
+  });
+}
+
+/**
+ * Mariero's stock from the store list for postal code 4017. power.no only lists
+ * stores that carry the product, so Mariero missing from a successful answer
+ * means "not in Mariero"; `rows === null` means the lookup itself failed.
+ */
+function toStoreStock(rows: unknown[] | null): StoreStock | null {
+  if (rows === null) return null;
+  const row = parseStoreRows(rows).find((r) => r.storeId === MARIERO.storeId);
+  if (!row) {
+    return {
+      id: MARIERO.storeId,
+      name: MARIERO.name,
+      availability: "not_available",
+      label: "Ikke på lager i Mariero",
+      onDisplay: false,
+      exactCount: null,
+    };
+  }
+  {
     const mapped = AVAILABILITY[row.storeAvailability ?? -1] ?? {
       key: "unknown" as const,
       label: "Ukjent lagerstatus",
@@ -129,13 +152,29 @@ function toStoreStock(rows: unknown[]): StoreStock | null {
       exactCount: typeof row.storeStockCount === "number" ? row.storeStockCount : null,
     };
   }
-  return null;
+}
+
+// Availability codes that mean the store has the product on hand.
+const HAS_IT = new Set([2, 3, 6]);
+
+/** Up to three nearest other stores that have the product (for sending a customer on). */
+function toNearby(rows: unknown[] | null): NearbyStore[] {
+  if (!rows) return [];
+  return parseStoreRows(rows)
+    .filter((r) => r.storeId !== MARIERO.storeId && HAS_IT.has(r.storeAvailability ?? -1))
+    .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity))
+    .slice(0, 3)
+    .map((r) => ({
+      name: r.name,
+      distanceKm: typeof r.distance === "number" ? Math.round(r.distance) : null,
+      onDisplayOnly: r.storeAvailability === 6,
+    }));
 }
 
 export function toProductInfo(
   ean: string | null,
   rawProduct: unknown,
-  storeRows: unknown[],
+  storeRows: unknown[] | null,
 ): ProductInfo {
   const p = searchProductSchema.parse(rawProduct);
   const productPath = p.url.startsWith("/") ? p.url : `/${p.url}`;
@@ -157,6 +196,7 @@ export function toProductInfo(
       webText: p.webStockText ? (WEB_STOCK_TEXT[p.webStockText] ?? null) : null,
       allStoresCount: p.storesStockCount ?? null,
       store: toStoreStock(storeRows),
+      nearby: toNearby(storeRows),
     },
     fetchedAt: new Date().toISOString(),
   };
@@ -208,16 +248,16 @@ export async function lookupPowerProduct(
 }
 
 /** Store stock is best-effort: a product card without it beats no card. */
-async function fetchStoreRows(fetchImpl: FetchLike, productId: number): Promise<unknown[]> {
+async function fetchStoreRows(fetchImpl: FetchLike, productId: number): Promise<unknown[] | null> {
   try {
     const rows = await getJson(fetchImpl, `/api/v2/products/${productId}/stores`, {
       postalCode: MARIERO.postalCode,
       amount: "5",
     });
-    return Array.isArray(rows) ? rows : [];
+    return Array.isArray(rows) ? rows : null;
   } catch (error) {
     console.error("power.no store stock failed", error instanceof Error ? error.message : error);
-    return [];
+    return null;
   }
 }
 

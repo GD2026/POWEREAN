@@ -1,11 +1,10 @@
-import { availabilityTone, formatCount, formatPrice } from "@/lib/client/format";
+import { formatPrice } from "@/lib/client/format";
 import type { ProductInfo, SearchResult } from "@/lib/product-types";
 
+import { MarieroStatus } from "./MarieroStatus";
 import { BarcodeIcon, OpenIcon } from "./icons";
 
 function StockRow({ p }: { p: ProductInfo }) {
-  const store = p.stock.store;
-  const tone = store ? availabilityTone(store.availability) : "neutral";
   return (
     <li className="pe-card pe-stockrow">
       <div className="pe-stockrow-main">
@@ -35,21 +34,7 @@ function StockRow({ p }: { p: ProductInfo }) {
           </div>
         </div>
       </div>
-      <div className="pe-status" data-tone={tone}>
-        <span className="pe-status-dot" aria-hidden />
-        <div>
-          {store
-            ? store.exactCount != null
-              ? `${store.exactCount} stk på lager i Mariero`
-              : store.label
-            : "Lagerstatus for Mariero ikke tilgjengelig"}
-          <small>
-            {store?.onDisplay ? "Utstillingsmodell i butikk · " : ""}
-            Nettlager {formatCount(p.stock.webCount)} · Alle butikker{" "}
-            {formatCount(p.stock.allStoresCount)}
-          </small>
-        </div>
-      </div>
+      <MarieroStatus product={p} />
       <a className="pe-btn" href={p.productUrl} target="_blank" rel="noopener noreferrer">
         <OpenIcon aria-hidden />
         Åpne på power.no

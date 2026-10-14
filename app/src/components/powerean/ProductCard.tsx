@@ -1,6 +1,7 @@
-import { availabilityTone, formatCount, formatPrice, spacedEan } from "@/lib/client/format";
+import { formatCount, formatPrice, spacedEan } from "@/lib/client/format";
 import type { LookupResult } from "@/lib/product-types";
 
+import { MarieroStatus } from "./MarieroStatus";
 import { BarcodeIcon, CheckIcon, ChecklistIcon, OpenIcon } from "./icons";
 
 interface ProductCardProps {
@@ -70,8 +71,6 @@ export function ProductCard({
   }
 
   const p = result.product;
-  const store = p.stock.store;
-  const tone = store ? availabilityTone(store.availability) : "neutral";
   return (
     <article className="pe-card pe-product" aria-label={p.title}>
       {p.imageUrl ? (
@@ -101,21 +100,7 @@ export function ProductCard({
         )}
       </div>
 
-      <div className="pe-status" data-tone={tone}>
-        <span className="pe-status-dot" aria-hidden />
-        <div>
-          {store
-            ? store.exactCount != null
-              ? `${store.exactCount} stk på lager i ${store.name.replace(/^POWER /, "")}`
-              : store.label
-            : "Lagerstatus for Mariero er ikke tilgjengelig"}
-          <small>
-            {store
-              ? `${store.name}${store.onDisplay ? " · utstillingsmodell i butikk" : ""}`
-              : "Prøv igjen om litt"}
-          </small>
-        </div>
-      </div>
+      <MarieroStatus product={p} showCounts={false} />
 
       <div className="pe-stock">
         <div className="pe-stat">

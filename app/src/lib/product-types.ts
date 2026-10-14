@@ -19,6 +19,13 @@ export interface StoreStock {
   exactCount: number | null;
 }
 
+export interface NearbyStore {
+  name: string;
+  distanceKm: number | null;
+  /** The store only has a display unit. */
+  onDisplayOnly: boolean;
+}
+
 export interface ProductInfo {
   /** The scanned EAN; null for products found by name/article number. */
   ean: string | null;
@@ -37,7 +44,10 @@ export interface ProductInfo {
     webCount: number | null;
     webText: string | null;
     allStoresCount: number | null;
+    /** Mariero; null when power.no's store lookup failed. */
     store: StoreStock | null;
+    /** Nearest other stores that have it, closest first (max 3). */
+    nearby: NearbyStore[];
   };
   fetchedAt: string;
 }

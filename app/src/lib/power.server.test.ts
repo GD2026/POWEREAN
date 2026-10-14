@@ -36,10 +36,30 @@ describe("toProductInfo", () => {
     expect(info.stock.webText).toBe("På nettlager (100+)");
   });
 
-  it("returns a null store when Mariero is missing from the store list", () => {
+  it("reports 'not in Mariero' when power.no lists other stores but not Mariero", () => {
+    // power.no only lists stores that carry the product.
     const others = storesAirpods.filter((s) => s.storeId !== MARIERO.storeId);
     const info = toProductInfo("195950543650", searchAirpods.products[0], others);
+    expect(info.stock.store).toMatchObject({
+      id: MARIERO.storeId,
+      availability: "not_available",
+      label: "Ikke på lager i Mariero",
+    });
+  });
+
+  it("lists the nearest other stores that have the product", () => {
+    const info = toProductInfo("195950543650", searchAirpods.products[0], storesAirpods);
+    expect(info.stock.nearby.length).toBeGreaterThan(0);
+    expect(info.stock.nearby.length).toBeLessThanOrEqual(3);
+    expect(info.stock.nearby.every((s) => !s.name.includes("Mariero"))).toBe(true);
+    expect(info.stock.nearby[0]).toMatchObject({ name: expect.stringMatching(/^POWER /) });
+    expect(typeof info.stock.nearby[0].distanceKm).toBe("number");
+  });
+
+  it("keeps the store unknown when the stock lookup itself failed", () => {
+    const info = toProductInfo("195950543650", searchAirpods.products[0], null);
     expect(info.stock.store).toBeNull();
+    expect(info.stock.nearby).toEqual([]);
   });
 
   it("maps every store availability code and reads an exact count when POWER sends one", () => {
